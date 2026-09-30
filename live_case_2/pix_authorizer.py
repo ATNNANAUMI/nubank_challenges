@@ -10,7 +10,7 @@ All amounts are integers in cents. Timestamps look like "2026-10-05T21:30:00".
 from __future__ import annotations
 
 from typing import Optional
-
+from datetime import datetime
 class Account:
     def __init__(self, timestamp: str, balance: int) -> None:
         self.balance = balance
@@ -89,26 +89,58 @@ class PixAuthorizer:
             return {"status": "rejected",
                     "violations": ["key-limit-reached"]}
         key_type = self.check_key(key)
-        print(key_type)
         if key_type == "invalid":
             return {"status": "rejected",
                     "violations": ["invalid-key"]}
         acc.timestamp[timestamp] = ["registered key", key, key_type]
-        acc.keys[key] = key_type
-        self.keys[key] = key_type
+        acc.keys[key] = [key_type]
+        self.keys[key] = [key_type, account_id]
         return {"status": "approved",
                 "violations": []}
-
-
-
+        
     def get_balance(self, timestamp: str, account_id: str) -> Optional[int]:
         """Returns the balance in cents, or None if the account doesn't exist."""
-        raise NotImplementedError
+        acc = self.accounts.get(account_id, None)
+        if acc == None:
+            return None
+        if timestamp in acc.timestamps:
+            acc.timestamps[timestamp].append("get balance")
+        else:
+            acc.timestamps[timestamp] = ["get balance"]
+        return acc.balance
 
     def transfer(
         self, timestamp: str, transfer_id: str, from_account: str, to_key: str, amount: int
     ) -> dict:
         """Returns {"status": "approved" | "rejected", "violations": [...]}."""
+        origin_acc = self.accounts.get(from_account, None)
+        if origin_acc == None:
+            return {"status": "rejected",
+                    "violations": ["account-not-found"]}
+        if to_key not in self.keys:
+            return {"status": "rejected",
+                    "violations": ["key-not-found"]} 
+        if self.keys[to_key][1] == from_account:#self.keys[to_key][1] is the keys account
+            return {"status": "rejected",
+                    "violations": ["same-account"]}
+        if origin_acc.balance < amount:
+            return {"status": "rejected",
+                    "violations": ["insufficient-balance"]}
+        if amount <= 0:
+            return {"status": "rejected",
+                    "violations": ["key-limit-reached"]}
+        day_time = 24*60*60 #24hour, 60 minutes per hour, 60 seconds per minute
+        for time, entry in origin_acc.timestamps.items():
+            
+            current_dt = datetime.fromisoformat(timestamp)
+            entry_dt = datetime.fromisoformat(time)
+            if entry[0] != "transfer":
+                continue
+            #if current_dt - past > timedelta(hours=1):
+            #if 
+            #hourly_limit +=  
+        
+            
         raise NotImplementedError
 
     # ------------------------------------------------------------ Part 5
